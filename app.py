@@ -17,7 +17,7 @@ from typing import Optional
 
 # Set page config at the very top - must be first Streamlit command
 st.set_page_config("Attendance","🕒")
-
+from zoneinfo import ZoneInfo
 # Initialize cookies manager
 from streamlit_cookies_manager import EncryptedCookieManager
 cookies = EncryptedCookieManager(
@@ -139,8 +139,11 @@ class ExcelStorage:
             sheet = get_latest_attendance_sheet()
             df = read_sheet(sheet)
             df = cleanup_and_rotate(df)
-
-            day = date.today()
+            LOCAL_TZ = ZoneInfo("Asia/Kolkata")
+            now_local = datetime.now(LOCAL_TZ)
+            day = now_local.date()
+            nowt = now_local.strftime("%H:%M:%S")
+            
             idxs = df[(df["PhoneNumber"] == str(phone)) & (df["Date"] == day)].index
 
             if len(idxs):
@@ -160,9 +163,7 @@ class ExcelStorage:
                 df = pd.concat([df, pd.DataFrame([new])], ignore_index=True)
                 idx = df.index[-1]
 
-            nowt = datetime.now().strftime("%H:%M:%S")
-
-        # --- Office Handling ---
+            # --- Office Handling ---
             # --- Office Handling ---
             prev_office = str(df.at[idx, "Office"]).strip()
             offices = [o.strip() for o in prev_office.split(",") if o.strip()] if prev_office else []
@@ -361,8 +362,10 @@ class SqlStorage:
     def mark_attendance(self, phone, name, deps, action, office=None):
         try:
             action = str(action).strip().upper()
-            today_str = date.today().isoformat()
-            nowt = datetime.now().strftime("%H:%M:%S")
+            LOCAL_TZ = ZoneInfo("Asia/Kolkata")
+            now_local = datetime.now(LOCAL_TZ)
+            today_str = now_local.date().isoformat()
+            nowt = now_local.strftime("%H:%M:%S")
             con = sqlite3.connect(self.db_path)
             cur = con.cursor()
             # Ensure row exists
@@ -732,7 +735,7 @@ def show_mark():
                 if user_within_selected_office(user_loc):
                     ok, msg = storage.mark_attendance(u["PhoneNumber"], u["Name"], u["Departments"], "IN", selected_office)
                     if ok:
-                        storage.update_attendance_fields(u["PhoneNumber"], date.today(), {"Office": selected_office})
+                        storage.update_attendance_fields(u["PhoneNumber"],datetime.now(ZoneInfo("Asia/Kolkata")).date(),{"Office": selected_office})
                         st.success(f"✅ {msg} at {selected_office}")
                         st.rerun()
                     else:
@@ -745,7 +748,7 @@ def show_mark():
                         if st.button(f"Confirm IN at {selected_office}", key="confirm_office_in"):
                             ok, msg = storage.mark_attendance(u["PhoneNumber"], u["Name"], u["Departments"], "IN", selected_office)
                             if ok:
-                                storage.update_attendance_fields(u["PhoneNumber"], date.today(), {"Office": selected_office})
+                                storage.update_attendance_fields(u["PhoneNumber"],datetime.now(ZoneInfo("Asia/Kolkata")).date(),{"Office": selected_office})
                                 st.success(f"✅ {msg} at {selected_office}")
                                 st.rerun()
                     with col_confirm2:
